@@ -1,0 +1,23 @@
+version: v2
+plugins:
+  # Go protobuf
+  - remote: buf.build/protocolbuffers/go
+    out: gen/go
+    opt: paths=source_relative
+
+  # Go Connect
+  - remote: buf.build/connectrpc/go
+    out: gen/go
+    opt: paths=source_relative
+
+  # JavaScript/TypeScript ES modules
+  - remote: buf.build/bufbuild/es
+    out: gen/es
+    opt: target=ts
+
+  # Connect for ES
+  - remote: buf.build/connectrpc/es
+    out: gen/connect-es
+    opt: target=ts
+inputs:
+  - directory: src/proto
