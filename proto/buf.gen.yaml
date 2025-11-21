@@ -12,12 +12,12 @@ plugins:
 
   # JavaScript/TypeScript ES modules
   - remote: buf.build/bufbuild/es
-    out: gen/es
+    out: gen
     opt: target=ts
 
   # Connect for ES
   - remote: buf.build/connectrpc/es
-    out: gen/connect-es
+    out: gen
     opt: target=ts
 inputs:
   - directory: src/proto
