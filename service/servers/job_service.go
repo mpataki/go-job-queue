@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"connectrpc.com/connect"
-	jobv1 "github.com/mpataki/go-job-queue/proto/gen/go/mpataki/go_job_queue/proto/job/v1"
+	jobv1 "github.com/mpataki/go-job-queue/proto/gen/go/mpataki/jobqueue/v1"
 )
 
 type JobServer struct{}

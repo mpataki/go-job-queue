@@ -13,11 +13,11 @@ Protocol buffer definitions for the go-job-queue project, compiled for Go and Ty
 proto/
 ├── src/proto/           # Source .proto files
 ├── gen/                 # Generated TypeScript (intermediate)
-│   └── mpataki/go_job_queue/proto/job/v1/
+│   └── mpataki/jobqueue/v1/
 │       ├── job_service_pb.ts
 │       └── job_service_connect.ts
 ├── dist/                # Compiled JavaScript (published)
-│   └── mpataki/go_job_queue/proto/job/v1/
+│   └── mpataki/jobqueue/v1/
 │       ├── job_service_pb.js
 │       ├── job_service_pb.d.ts
 │       ├── job_service_connect.js
@@ -66,7 +66,7 @@ import { JobServiceConnect } from '@mpataki/go-job-queue-proto';
 ### Go
 
 ```go
-import jobv1 "github.com/mpataki/go-job-queue/proto/gen/go/mpataki/go_job_queue/proto/job/v1"
+import jobv1 "github.com/mpataki/go-job-queue/proto/gen/go/mpataki/jobqueue/v1"
 ```
 
 ## Development

@@ -8,7 +8,7 @@ import (
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 
-	"github.com/mpataki/go-job-queue/proto/gen/go/mpataki/go_job_queue/proto/job/v1/jobv1connect"
+	"github.com/mpataki/go-job-queue/proto/gen/go/mpataki/jobqueue/v1/jobqueuev1connect"
 	"github.com/mpataki/go-job-queue/service/servers"
 )
 
@@ -19,12 +19,12 @@ func main() {
 	jobServer := servers.NewJobServer()
 
 	// Register the job service
-	path, handler := jobv1connect.NewJobServiceHandler(jobServer)
+	path, handler := jobqueuev1connect.NewJobServiceHandler(jobServer)
 	mux.Handle(path, handler)
 
 	// Register reflection service
 	reflector := grpcreflect.NewStaticReflector(
-		jobv1connect.JobServiceName,
+		jobqueuev1connect.JobServiceName,
 	)
 	mux.Handle(grpcreflect.NewHandlerV1(reflector))
 	mux.Handle(grpcreflect.NewHandlerV1Alpha(reflector))

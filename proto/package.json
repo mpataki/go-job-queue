@@ -2,8 +2,8 @@
   "name": "@mpataki/go-job-queue-proto",
   "version": "0.0.1",
   "description": "Protocol buffer definitions for go-job-queue",
-  "main": "dist/mpataki/go_job_queue/proto/job/v1/job_service_pb.js",
-  "types": "dist/mpataki/go_job_queue/proto/job/v1/job_service_pb.d.ts",
+  "main": "dist/mpataki/jobqueue/v1/job_service_pb.js",
+  "types": "dist/mpataki/jobqueue/v1/job_service_pb.d.ts",
   "scripts": {
     "build": "buf generate && tsc",
     "clean": "rm -rf dist gen"
