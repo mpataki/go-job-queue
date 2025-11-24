@@ -10,19 +10,32 @@ import (
 	"golang.org/x/net/http2/h2c"
 
 	"github.com/mpataki/go-job-queue/proto/gen/go/mpataki/jobqueue/v1/jobqueuev1connect"
-	"github.com/redis/go-redis/v9"
+	"github.com/mpataki/go-job-queue/service/internal/jobs"
 )
 
 func main() {
-	// Initialize Redis (ready for when we implement the service)
-	_ = redis.NewClient(&redis.Options{
-		Addr: getEnv("REDIS_ADDR", "localhost:6379"),
-	})
+	config, err := jobs.NewConfig()
+
+	if err != nil {
+		fmt.Printf("Failed to load configuration: %v\n", err)
+		os.Exit(1)
+	}
+
+	storage, err := jobs.NewStorage(config)
+	if err != nil {
+		fmt.Printf("Failed to initialize storage: %v\n", err)
+		os.Exit(1)
+	}
+
+	service, err := jobs.NewService(config, storage)
+	if err != nil {
+		fmt.Printf("Failed to initialize service: %v\n", err)
+		os.Exit(1)
+	}
+
+	jobServer := NewJobServer(service)
 
 	mux := http.NewServeMux()
-
-	// Initialize the job server
-	jobServer := NewJobServer()
 
 	// Register the job service
 	path, handler := jobqueuev1connect.NewJobServiceHandler(jobServer)
@@ -46,12 +59,3 @@ func main() {
 	}
 }
 
-func getEnv(key, defaultValue string) string {
-	value, exists := os.LookupEnv(key)
-
-	if !exists {
-		return defaultValue
-	}
-
-	return value
-}

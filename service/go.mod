@@ -5,6 +5,7 @@ go 1.25
 require (
 	connectrpc.com/connect v1.19.1
 	connectrpc.com/grpcreflect v1.3.0
+	github.com/google/uuid v1.6.0
 	github.com/mpataki/go-job-queue/proto v0.0.0
 	github.com/redis/go-redis/v9 v9.17.0
 	golang.org/x/net v0.34.0

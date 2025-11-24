@@ -5,11 +5,9 @@ package mpataki.jobqueue.v1;
 option go_package = "github.com/mpataki/go-job-queue/proto/gen/go/mpataki/jobqueue/v1;jobqueuev1";
 
 service JobService {
-  rpc CreateJob(CreateJobRequest) returns (CreateJobResponse) {}
+  rpc EnqueueJob(EnqueueJobRequest) returns (EnqueueJobResponse) {}
   rpc GetJob(GetJobRequest) returns (GetJobResponse) {}
-  rpc ListJobs(ListJobsRequest) returns (ListJobsResponse) {}
-  rpc UpdateJob(UpdateJobRequest) returns (UpdateJobResponse) {}
-  rpc DeleteJob(DeleteJobRequest) returns (DeleteJobResponse) {}
+  rpc CancelJob(CancelJobRequest) returns (CancelJobResponse) {}
 }
 
 enum JobStatus {
@@ -22,20 +20,21 @@ enum JobStatus {
 
 message Job {
   string id = 1;
-  string name = 2;
-  map<string, string> payload = 3;
+  string type = 2;
+  bytes payload = 3;
   JobStatus status = 4;
   int64 execution_time_ms = 5;
   int64 created_at = 6;
   int64 updated_at = 7;
 }
 
-message CreateJobRequest {
-  string name = 1;
-  map<string, string> payload = 4;
+message EnqueueJobRequest {
+  string type = 1;
+  bytes payload = 2;
+  optional int64 execution_time_ms = 3;
 }
 
-message CreateJobResponse {
+message EnqueueJobResponse {
   Job job = 1;
 }
 
@@ -47,30 +46,8 @@ message GetJobResponse {
   Job job = 1;
 }
 
-message ListJobsRequest {
-  int32 page_size = 1;
-  string page_token = 2;
-}
-
-message ListJobsResponse {
-  repeated Job jobs = 1;
-  string next_page_token = 2;
-}
-
-message UpdateJobRequest {
-  string id = 1;
-  string name = 2;
-  map<string, string> payload = 3;
-  JobStatus status = 4;
-  int64 execution_time_ms = 5;
-}
-
-message UpdateJobResponse {
-  Job job = 1;
-}
-
-message DeleteJobRequest {
+message CancelJobRequest {
   string id = 1;
 }
 
-message DeleteJobResponse {}
+message CancelJobResponse {}
