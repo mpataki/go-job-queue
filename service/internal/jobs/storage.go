@@ -2,6 +2,8 @@ package jobs
 
 import (
 	"context"
+	"fmt"
+	"strconv"
 
 	"github.com/redis/go-redis/v9"
 )
@@ -23,35 +25,88 @@ func NewStorage(config *Config) (*Storage, error) {
 }
 
 func (s *Storage) PutJob(ctx context.Context, job *Job) error {
-	jobKey := "job:" + job.ID
-
-	err := s.redisClient.HSet(ctx, jobKey, map[string]any{
+	err := s.redisClient.HSet(ctx, jobKey(job.ID), map[string]any{
 		"type": job.Type,
 		"payload": job.Payload,
+		"status": string(job.Status),
 		"created_at": job.CreatedAt,
 		"updated_at": job.UpdatedAt,
 	}).Err()
 
 	if err != nil {
-		return err
+		return fmt.Errorf("storage.PutJob failed to HSet the job: %w", err)
 	}
 
-	queueKey := "queue:" + job.Type
-
-	err = s.redisClient.ZAdd(ctx, queueKey, redis.Z{
+	err = s.redisClient.ZAdd(ctx, queueKey(job.Type), redis.Z{
 		Score: float64(job.ExecutionTime),
 		Member: job.ID,
 	}).Err()
 
 	if err != nil {
-		return err
+		return fmt.Errorf("storage.PutJob failed to ZAdd the job: %w", err)
 	}
 
 	return nil
 }
 
-// func (s *Storage) GetJob() (*Job, error) {
-// }
-//
+func (s *Storage) GetJob(ctx context.Context, id string) (*Job, error) {
+	m, err := s.redisClient.HGetAll(ctx, jobKey(id)).Result()
+	if err != nil {
+		return nil, fmt.Errorf("storage.GetJob failed to HGetAll: %w", err)
+	}
+
+	createdAt, err := strconv.ParseInt(m["created_at"], 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("storage.GetJob failed to ParseInt on the created_at field: %w", err)
+	}
+
+	updatedAt, err := strconv.ParseInt(m["updated_at"], 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("storage.GetJob failed to ParseInt on the updated_at field: %w", err)
+	}
+
+	jobType := m["type"]
+
+	score, err := s.redisClient.ZScore(ctx, queueKey(jobType), id).Result()
+	if err != nil {
+		return nil, fmt.Errorf("storage.GetJob failed to get the ZScore: %w", err)
+	}
+
+	job := Job{
+		ID:            id,
+		Type:          jobType,
+		Payload:       []byte(m["payload"]),
+		ExecutionTime: int64(score),
+		Status:        jobStatusForString(m["status"]),
+		CreatedAt:     createdAt,
+		UpdatedAt:     updatedAt,
+	}
+
+	return &job, nil
+}
+
 // func (s *Storage) DeleteJob() error {
 // }
+
+func jobKey(id string) string {
+	return "job:" + id
+}
+
+func queueKey(jobType string) string {
+	return "queue:" + jobType
+}
+
+func jobStatusForString(s string) JobStatus {
+	switch s {
+	case "pending":
+		return JobStatusPending
+	case "running":
+		return JobStatusRunning
+	case "completed":
+		return JobStatusCompleted
+	case "failed":
+		return JobStatusFailed
+	default:
+		return JobStatusUnspecified
+	}
+}

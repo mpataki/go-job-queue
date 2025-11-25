@@ -7,6 +7,7 @@ const (
 	JobStatusRunning JobStatus = "running"
 	JobStatusCompleted JobStatus = "completed"
 	JobStatusFailed JobStatus = "failed"
+	JobStatusUnspecified JobStatus = "unspecified"
 )
 
 type Job struct {

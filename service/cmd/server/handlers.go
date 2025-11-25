@@ -29,7 +29,6 @@ func (s *JobServer) EnqueueJob(
 	}
 
 	job, err := s.service.EnqueueJob(ctx, &request)
-
 	if err != nil {
 		// perhaps we can use more granular codes here as we fill out failure modes
 		return nil, connect.NewError(connect.CodeInternal, err)
@@ -54,7 +53,25 @@ func (s *JobServer) GetJob(
 	ctx context.Context,
 	req *connect.Request[jobv1.GetJobRequest],
 ) (*connect.Response[jobv1.GetJobResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, nil)
+	job, err := s.service.GetJob(ctx, req.Msg.Id)
+	if err != nil {
+		// perhaps we can use more granular codes here as we fill out failure modes
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+
+	resp := &jobv1.GetJobResponse{
+		Job: &jobv1.Job{
+			Id:              job.ID,
+			Type:            job.Type,
+			Payload:         job.Payload,
+			Status:          domainJobStatusToProto(job.Status),
+			ExecutionTimeMs: job.ExecutionTime,
+			CreatedAt:       job.CreatedAt,
+			UpdatedAt:       job.UpdatedAt,
+		},
+	}
+
+	return connect.NewResponse(resp), nil
 }
 
 func (s *JobServer) CancelJob(

@@ -55,3 +55,7 @@ func (s *Service) EnqueueJob(ctx context.Context,  request *EnqueueJobRequest) (
 
 	return job, nil
 }
+
+func (s *Service) GetJob(ctx context.Context, id string) (*Job, error) {
+	return s.storage.GetJob(ctx, id)
+}

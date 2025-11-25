@@ -58,4 +58,3 @@ func main() {
 		fmt.Printf("Failed to start server: %v\n", err)
 	}
 }
-
