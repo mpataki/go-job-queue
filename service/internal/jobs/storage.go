@@ -23,7 +23,7 @@ func NewStorage(config *Config) (*Storage, error) {
 }
 
 func (s *Storage) PutJob(ctx context.Context, job *Job) error {
-	jobKey := "job:" + job.Id
+	jobKey := "job:" + job.ID
 
 	err := s.redisClient.HSet(ctx, jobKey, map[string]any{
 		"type": job.Type,
@@ -40,7 +40,7 @@ func (s *Storage) PutJob(ctx context.Context, job *Job) error {
 
 	err = s.redisClient.ZAdd(ctx, queueKey, redis.Z{
 		Score: float64(job.ExecutionTime),
-		Member: job.Id,
+		Member: job.ID,
 	}).Err()
 
 	if err != nil {

@@ -10,7 +10,7 @@ const (
 )
 
 type Job struct {
-	Id string
+	ID string
 	Type string
 	Payload []byte
 	ExecutionTime int64

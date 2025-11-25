@@ -37,7 +37,7 @@ func (s *JobServer) EnqueueJob(
 
 	resp := &jobv1.EnqueueJobResponse{
 		Job: &jobv1.Job{
-			Id:              job.Id,
+			Id:              job.ID,
 			Type:            job.Type,
 			Payload:         job.Payload,
 			Status:          domainJobStatusToProto(job.Status),

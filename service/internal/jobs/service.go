@@ -38,7 +38,7 @@ func (s *Service) EnqueueJob(ctx context.Context,  request *EnqueueJobRequest) (
 	}
 
 	job := &Job{
-		Id:            uuid.NewString(),
+		ID:            uuid.NewString(),
 		Type:          request.Type,
 		Payload:       request.Payload,
 		ExecutionTime: executionTime,
