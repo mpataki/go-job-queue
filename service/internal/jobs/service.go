@@ -59,3 +59,8 @@ func (s *Service) EnqueueJob(ctx context.Context,  request *EnqueueJobRequest) (
 func (s *Service) GetJob(ctx context.Context, id string) (*Job, error) {
 	return s.storage.GetJob(ctx, id)
 }
+
+func (s *Service) DeleteJob(ctx context.Context, id string) error {
+	return s.storage.DeleteJob(ctx, id)
+}
+

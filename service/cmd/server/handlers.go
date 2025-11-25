@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 
 	"connectrpc.com/connect"
 	jobv1 "github.com/mpataki/go-job-queue/proto/gen/go/mpataki/jobqueue/v1"
@@ -54,6 +55,11 @@ func (s *JobServer) GetJob(
 	req *connect.Request[jobv1.GetJobRequest],
 ) (*connect.Response[jobv1.GetJobResponse], error) {
 	job, err := s.service.GetJob(ctx, req.Msg.Id)
+
+	if errors.Is(err, jobs.ErrJobNotFound) {
+		return nil, connect.NewError(connect.CodeNotFound, err)
+	}
+
 	if err != nil {
 		// perhaps we can use more granular codes here as we fill out failure modes
 		return nil, connect.NewError(connect.CodeInternal, err)
@@ -78,7 +84,14 @@ func (s *JobServer) CancelJob(
 	ctx context.Context,
 	req *connect.Request[jobv1.CancelJobRequest],
 ) (*connect.Response[jobv1.CancelJobResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, nil)
+	err := s.service.DeleteJob(ctx, req.Msg.Id)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+
+	resp := &jobv1.CancelJobResponse{}
+
+	return connect.NewResponse(resp), nil
 }
 
 func domainJobStatusToProto(status jobs.JobStatus) jobv1.JobStatus {

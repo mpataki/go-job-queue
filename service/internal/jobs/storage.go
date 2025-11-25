@@ -55,6 +55,10 @@ func (s *Storage) GetJob(ctx context.Context, id string) (*Job, error) {
 		return nil, fmt.Errorf("storage.GetJob failed to HGetAll: %w", err)
 	}
 
+	if len(m) == 0 {
+		return nil, ErrJobNotFound
+	}
+
 	createdAt, err := strconv.ParseInt(m["created_at"], 10, 64)
 	if err != nil {
 		return nil, fmt.Errorf("storage.GetJob failed to ParseInt on the created_at field: %w", err)
@@ -68,7 +72,7 @@ func (s *Storage) GetJob(ctx context.Context, id string) (*Job, error) {
 	jobType := m["type"]
 
 	score, err := s.redisClient.ZScore(ctx, queueKey(jobType), id).Result()
-	if err != nil {
+	if err != nil && err != redis.Nil {
 		return nil, fmt.Errorf("storage.GetJob failed to get the ZScore: %w", err)
 	}
 
@@ -85,8 +89,26 @@ func (s *Storage) GetJob(ctx context.Context, id string) (*Job, error) {
 	return &job, nil
 }
 
-// func (s *Storage) DeleteJob() error {
-// }
+func (s *Storage) DeleteJob(ctx context.Context, id string) error {
+	jobKey := jobKey(id)
+
+	m, err := s.redisClient.HGetAll(ctx, jobKey).Result()
+	if err != nil {
+		return fmt.Errorf("storage.DeleteJob failed to HGetAll: %w", err)
+	}
+
+	err = s.redisClient.ZRem(ctx, queueKey(m["type"]), id).Err()
+	if err != nil {
+		return fmt.Errorf("storage.DeleteJob failed to ZRem: %w", err)
+	}
+
+	err = s.redisClient.Del(ctx, jobKey).Err()
+	if err != nil {
+		return fmt.Errorf("storage.DeleteJob failed to Del: %w", err)
+	}
+
+	return nil
+}
 
 func jobKey(id string) string {
 	return "job:" + id
