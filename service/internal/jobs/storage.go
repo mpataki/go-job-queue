@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"time"
 
 	"github.com/redis/go-redis/v9"
 )
@@ -24,17 +25,42 @@ func NewStorage(config *Config) (*Storage, error) {
 	return &storage, nil
 }
 
-func (s *Storage) PutJob(ctx context.Context, job *Job) error {
-	err := s.redisClient.HSet(ctx, jobKey(job.ID), map[string]any{
+func (s *Storage) PutJob(ctx context.Context, job *Job) (*Job, error) {
+	jobKey := jobKey(job.ID)
+	now := time.Now().UnixMilli()
+	createdAt := now
+
+	c, err := s.redisClient.HGet(ctx, jobKey, "created_at").Result()
+	if err != nil && err != redis.Nil {
+		return nil, fmt.Errorf("storage.PutJob failed to HGet the job: %w", err)
+	}
+	if len(c) > 0 {
+		createdAt, err = strconv.ParseInt(c, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("storage.PutJob failed parse the createdAt time: %w", err)
+		}
+	}
+
+	toReturn := Job{
+		ID:            job.ID,
+		Type:          job.Type,
+		Payload:       job.Payload,
+		ExecutionTime: job.ExecutionTime,
+		Status:        job.Status,
+		CreatedAt:     createdAt,
+		UpdatedAt:     now,
+	}
+
+	err = s.redisClient.HSet(ctx, jobKey, map[string]any{
 		"type": job.Type,
 		"payload": job.Payload,
 		"status": string(job.Status),
-		"created_at": job.CreatedAt,
-		"updated_at": job.UpdatedAt,
+		"created_at": strconv.FormatInt(createdAt, 10),
+		"updated_at": strconv.FormatInt(now, 10),
 	}).Err()
 
 	if err != nil {
-		return fmt.Errorf("storage.PutJob failed to HSet the job: %w", err)
+		return nil, fmt.Errorf("storage.PutJob failed to HSet the job: %w", err)
 	}
 
 	err = s.redisClient.ZAdd(ctx, queueKey(job.Type), redis.Z{
@@ -43,10 +69,10 @@ func (s *Storage) PutJob(ctx context.Context, job *Job) error {
 	}).Err()
 
 	if err != nil {
-		return fmt.Errorf("storage.PutJob failed to ZAdd the job: %w", err)
+		return nil, fmt.Errorf("storage.PutJob failed to ZAdd the job: %w", err)
 	}
 
-	return nil
+	return &toReturn, nil
 }
 
 func (s *Storage) GetJob(ctx context.Context, id string) (*Job, error) {

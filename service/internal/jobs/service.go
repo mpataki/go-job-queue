@@ -43,11 +43,9 @@ func (s *Service) EnqueueJob(ctx context.Context,  request *EnqueueJobRequest) (
 		Payload:       request.Payload,
 		ExecutionTime: executionTime,
 		Status:        JobStatusPending,
-		CreatedAt:     time.Now().UnixMilli(),
-		UpdatedAt:     time.Now().UnixMilli(),
 	}
 
-	err := s.storage.PutJob(ctx, job)
+	job, err := s.storage.PutJob(ctx, job)
 
 	if err != nil {
 		return nil, err
