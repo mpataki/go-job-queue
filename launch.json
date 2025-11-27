@@ -13,6 +13,17 @@
             "args": []
         },
         {
+            "name": "Launch Worker",
+            "type": "delve",
+            "request": "launch",
+            "mode": "debug",
+            "program": "${workspaceFolder}/service/cmd/worker",
+            "env": {
+                "REDIS_ADDR": "localhost:6379"
+            },
+            "args": []
+        },
+        {
             "name": "Debug Current Test",
             "type": "delve",
             "request": "launch",

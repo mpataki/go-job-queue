@@ -52,22 +52,20 @@ func (s *Storage) PutJob(ctx context.Context, job *Job) (*Job, error) {
 	}
 
 	err = s.redisClient.HSet(ctx, jobKey, map[string]any{
-		"type": job.Type,
-		"payload": job.Payload,
-		"status": string(job.Status),
+		"type":       job.Type,
+		"payload":    job.Payload,
+		"status":     string(job.Status),
 		"created_at": strconv.FormatInt(createdAt, 10),
 		"updated_at": strconv.FormatInt(now, 10),
 	}).Err()
-
 	if err != nil {
 		return nil, fmt.Errorf("storage.PutJob failed to HSet the job: %w", err)
 	}
 
 	err = s.redisClient.ZAdd(ctx, queueKey(job.Type), redis.Z{
-		Score: float64(job.ExecutionTime),
+		Score:  float64(job.ExecutionTime),
 		Member: job.ID,
 	}).Err()
-
 	if err != nil {
 		return nil, fmt.Errorf("storage.PutJob failed to ZAdd the job: %w", err)
 	}
@@ -116,6 +114,64 @@ func (s *Storage) GetJob(ctx context.Context, id string) (*Job, error) {
 }
 
 func (s *Storage) DeleteJob(ctx context.Context, id string) error {
+	err := s.DequeueJob(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	err = s.redisClient.Del(ctx, jobKey(id)).Err()
+	if err != nil {
+		return fmt.Errorf("storage.DeleteJob failed to Del: %w", err)
+	}
+
+	return nil
+}
+
+func (s *Storage) GetExecutableJob(ctx context.Context, jobType string) (*Job, error) {
+	queueKey := queueKey(jobType)
+	now := time.Now().UnixMilli()
+
+	results, err := s.redisClient.ZRangeByScore(ctx, queueKey, &redis.ZRangeBy{
+		Min:    "-inf",
+		Max:    strconv.FormatInt(now, 10),
+		Offset: 0,
+		Count:  1,
+	}).Result()
+	if err != nil {
+		return nil, fmt.Errorf("failed to ZRangeByScore: %w", err)
+	}
+
+	if len(results) == 0 {
+		return nil, nil
+	}
+
+	jobID := results[0]
+
+	job, err := s.GetJob(ctx, jobID)
+	if err != nil {
+		return nil, err
+	}
+
+	return job, nil
+}
+
+// Note that this isn't automic, but could use a lua script in the future
+func (s *Storage) SetJobStatus(ctx context.Context, jobID string, status JobStatus) error {
+	jobKey := jobKey(jobID)
+
+	exists, err := s.redisClient.Exists(ctx, jobKey).Result()
+	if err != nil {
+		return err
+	}
+
+	if exists == 0 {
+		return ErrJobNotFound
+	}
+
+	return s.redisClient.HSet(ctx, jobKey, "status", string(status)).Err()
+}
+
+func (s *Storage) DequeueJob(ctx context.Context, id string) error {
 	jobKey := jobKey(id)
 
 	m, err := s.redisClient.HGetAll(ctx, jobKey).Result()
@@ -128,12 +184,11 @@ func (s *Storage) DeleteJob(ctx context.Context, id string) error {
 		return fmt.Errorf("storage.DeleteJob failed to ZRem: %w", err)
 	}
 
-	err = s.redisClient.Del(ctx, jobKey).Err()
-	if err != nil {
-		return fmt.Errorf("storage.DeleteJob failed to Del: %w", err)
-	}
-
 	return nil
+}
+
+func (s *Storage) SetExpiry(ctx context.Context, id string, duration time.Duration) error {
+	return s.redisClient.Expire(ctx, jobKey(id), duration).Err()
 }
 
 func jobKey(id string) string {

@@ -7,11 +7,11 @@ type Config struct {
 }
 
 func NewConfig() (*Config, error) {
-	config := Config{
+	c := Config{
 		redisAddr: getEnv("REDIS_ADDR", "localhost:6379"),
 	}
 
-	return &config, nil
+	return &c, nil
 }
 
 func getEnv(key, defaultValue string) string {

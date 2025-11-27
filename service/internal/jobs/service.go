@@ -9,28 +9,29 @@ import (
 )
 
 // Service is the top level API that all runners and entrypoints use.
-//   All system functionality is exposed from this this struct
+//
+//	All system functionality is exposed from this this struct
 type Service struct {
-	config *Config
+	config  *Config
 	storage *Storage
 }
 
 func NewService(config *Config, storage *Storage) (*Service, error) {
-	service := Service{
-		config: config,
+	s := Service{
+		config:  config,
 		storage: storage,
 	}
 
-	return &service, nil
+	return &s, nil
 }
 
 type EnqueueJobRequest struct {
-	Type string
-	Payload []byte
+	Type          string
+	Payload       []byte
 	ExecutionTime *int64
 }
 
-func (s *Service) EnqueueJob(ctx context.Context,  request *EnqueueJobRequest) (*Job, error) {
+func (s *Service) EnqueueJob(ctx context.Context, request *EnqueueJobRequest) (*Job, error) {
 	executionTime := time.Now().UnixMilli()
 
 	if request.ExecutionTime != nil {
@@ -46,7 +47,6 @@ func (s *Service) EnqueueJob(ctx context.Context,  request *EnqueueJobRequest) (
 	}
 
 	job, err := s.storage.PutJob(ctx, job)
-
 	if err != nil {
 		return nil, err
 	}
@@ -62,3 +62,38 @@ func (s *Service) DeleteJob(ctx context.Context, id string) error {
 	return s.storage.DeleteJob(ctx, id)
 }
 
+func (s *Service) GetExecutableJob(ctx context.Context, jobType string) (*Job, error) {
+	return s.storage.GetExecutableJob(ctx, jobType)
+}
+
+func (s *Service) MarkJobAsRunning(ctx context.Context, id string) error {
+	return s.storage.SetJobStatus(ctx, id, JobStatusRunning)
+}
+
+func (s *Service) MarkJobAsFailed(ctx context.Context, id string) error {
+	err := s.storage.DequeueJob(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	err = s.storage.SetJobStatus(ctx, id, JobStatusFailed)
+	if err != nil {
+		return err
+	}
+
+	return s.storage.SetExpiry(ctx, id, 5*time.Minute)
+}
+
+func (s *Service) MarkJobComplete(ctx context.Context, id string) error {
+	err := s.storage.DequeueJob(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	err = s.storage.SetJobStatus(ctx, id, JobStatusCompleted)
+	if err != nil {
+		return err
+	}
+
+	return s.storage.SetExpiry(ctx, id, 5*time.Minute)
+}

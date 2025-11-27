@@ -5,6 +5,16 @@ services:
       - "8080:8080"
     environment:
       REDIS_ADDR: "redis:6379"
+    depends_on:
+      - redis
+  worker:
+    build: 
+      dockerfile: Dockerfile.worker
+      context: .
+    environment:
+      REDIS_ADDR: "redis:6379"
+    depends_on:
+      - redis
   redis:
     image: redis:8.4.0
     ports:

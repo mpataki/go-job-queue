@@ -3,19 +3,19 @@ package jobs
 type JobStatus string
 
 const (
-	JobStatusPending JobStatus = "pending"
-	JobStatusRunning JobStatus = "running"
-	JobStatusCompleted JobStatus = "completed"
-	JobStatusFailed JobStatus = "failed"
+	JobStatusPending     JobStatus = "pending"
+	JobStatusRunning     JobStatus = "running"
+	JobStatusCompleted   JobStatus = "completed"
+	JobStatusFailed      JobStatus = "failed"
 	JobStatusUnspecified JobStatus = "unspecified"
 )
 
 type Job struct {
-	ID string
-	Type string
-	Payload []byte
+	ID            string
+	Type          string
+	Payload       []byte
 	ExecutionTime int64
-	Status JobStatus
-	CreatedAt int64
-	UpdatedAt int64
+	Status        JobStatus
+	CreatedAt     int64
+	UpdatedAt     int64
 }

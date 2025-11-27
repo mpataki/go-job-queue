@@ -1,218 +1,181 @@
 # go-job-queue
 
-A distributed job queue system built with Go, Redis, and gRPC. Inspired by Sidekiq, this queue allows users to define and register custom job handlers while the system manages scheduling, persistence, and execution.
+A distributed job queue system built with Go, Redis, and gRPC. Supports scheduled job execution with **at-least-once delivery** semantics.
 
-## Project Structure
-
-```
-go-job-queue/
-├── proto/                      # Protocol buffer definitions (Module 1)
-│   ├── src/proto/             # Source .proto files
-│   ├── gen/                   # Generated code (Go, TypeScript)
-│   ├── package.json           # npm package for TypeScript clients
-│   └── go.mod
-├── server/                     # Go service implementation (Module 2)
-│   ├── cmd/
-│   │   ├── server/            # gRPC API server binary
-│   │   └── example-worker/    # Example worker implementation
-│   ├── internal/              # Private application code
-│   │   └── jobs/              # Job domain logic and Redis storage
-│   ├── worker/                # PUBLIC - Worker SDK for users
-│   ├── client/                # PUBLIC - Client SDK for job submission
-│   └── go.mod
-├── compose.yaml               # Docker Compose (Redis + Server)
-└── go.work                    # Go workspace configuration
-```
-
-## Prerequisites
-
-- Go 1.25+
-- Redis 7+ (or use Docker Compose)
-- [Buf CLI](https://buf.build/docs/installation) - Protocol buffer tooling
-- [grpcurl](https://github.com/fullstorydev/grpcurl) - gRPC testing tool (optional)
-- Docker & Docker Compose (for containerized deployment)
-
-## Getting Started
-
-### Run with Docker Compose
+## Quick Start
 
 ```bash
+# Start everything (server, worker, Redis)
 docker compose up --build
+
+# In another terminal, enqueue a job
+grpcurl -plaintext -d '{
+  "type": "print",
+  "payload": "SGVsbG8gV29ybGQh"
+}' localhost:8080 mpataki.jobqueue.v1.JobService/EnqueueJob
 ```
 
-The service will be available at `localhost:8080`.
+The example worker will process the job and log the payload.
 
-### Run Locally
+## Architecture
 
-1. Start Redis:
-```bash
-redis-server
-```
+**Components:**
+- **Server** - gRPC API for job submission and querying
+- **Worker SDK** - Library for building custom job processors
+- **Redis** - Job storage and scheduling (sorted sets + hashes)
 
-2. Generate proto code (if modified):
-```bash
-cd proto
-buf generate
-cd ..
-```
-
-3. Run the server:
-```bash
-go run ./server/cmd/server
-```
-
-The service will be available at `localhost:8080`.
-
-## How It Works
-
-### Architecture
-
-The job queue follows a **registration pattern** similar to Sidekiq:
-
-1. **Server** - Central gRPC API for job submission and querying (you deploy this)
-2. **Client** - SDK for submitting jobs via gRPC
-3. **Worker** - SDK for processing jobs (users import and register handlers)
-4. **Redis** - Job storage and queue (workers poll Redis directly, not via gRPC)
-
-### Job Flow
-
+**Job Flow:**
 ```
 Client → gRPC → Server → Redis (job stored)
 Worker → Redis (poll) → Execute Handler → Update Status
-Client → gRPC → Server → Redis (query status)
 ```
 
-## API Documentation
+**Key Properties:**
+- At-least-once delivery (jobs may execute multiple times on worker crashes)
+- Scheduled execution via Unix timestamps
+- Completed/failed jobs expire after 24 hours
+- Single-threaded worker (v1)
 
-### gRPC Service Endpoints
+## API Examples
 
-The `JobService` provides the following RPCs:
+### Enqueue a Job
 
-- `EnqueueJob` - Submit a new job to the queue
-- `GetJob` - Retrieve job status by ID
-- `CancelJob` - Cancel a pending job
-
-### Job Status
-
-- `JOB_STATUS_PENDING` - Job is queued, waiting to execute
-- `JOB_STATUS_RUNNING` - Job is currently executing
-- `JOB_STATUS_COMPLETED` - Job finished successfully
-- `JOB_STATUS_FAILED` - Job execution failed
-
-## Testing with grpcurl
-
-The service includes gRPC reflection for easy testing.
-
-### List available services
-
-```bash
-grpcurl -plaintext localhost:8080 list
-```
-
-Output:
-```
-mpataki.jobqueue.v1.JobService
-```
-
-### Describe the JobService
-
-```bash
-grpcurl -plaintext localhost:8080 describe mpataki.jobqueue.v1.JobService
-```
-
-### List all methods
-
-```bash
-grpcurl -plaintext localhost:8080 list mpataki.jobqueue.v1.JobService
-```
-
-### Enqueue a job
-
+Execute immediately:
 ```bash
 grpcurl -plaintext -d '{
   "type": "send_email",
-  "payload": "eyJ0byI6InRlc3RAZXhhbXBsZS5jb20ifQ==",
-  "execution_time_ms": 1640000000000
+  "payload": "eyJlbWFpbCI6InRlc3RAZXhhbXBsZS5jb20ifQ=="
 }' localhost:8080 mpataki.jobqueue.v1.JobService/EnqueueJob
 ```
 
-**With immediate execution** (omit execution_time_ms):
+Schedule for later (Unix milliseconds):
 ```bash
 grpcurl -plaintext -d '{
   "type": "send_email",
-  "payload": "eyJ0byI6InRlc3RAZXhhbXBsZS5jb20ifQ=="
+  "payload": "eyJlbWFpbCI6InRlc3RAZXhhbXBsZS5jb20ifQ==",
+  "execution_time_ms": 1735689600000
 }' localhost:8080 mpataki.jobqueue.v1.JobService/EnqueueJob
 ```
 
-### Get job status
+### Get Job Status
 
 ```bash
-grpcurl -plaintext -d '{"id": "job-id-here"}' \
+grpcurl -plaintext -d '{"id": "JOB_ID_HERE"}' \
   localhost:8080 mpataki.jobqueue.v1.JobService/GetJob
 ```
 
-### Cancel a job
+### Cancel a Job
 
 ```bash
-grpcurl -plaintext -d '{"id": "job-id-here"}' \
+grpcurl -plaintext -d '{"id": "JOB_ID_HERE"}' \
   localhost:8080 mpataki.jobqueue.v1.JobService/CancelJob
 ```
 
+### List Services
+
+```bash
+grpcurl -plaintext localhost:8080 list
+# Output: mpataki.jobqueue.v1.JobService
+```
+
+## Building a Custom Worker
+
+See `service/cmd/worker/main.go` for a complete example.
+
+```go
+package main
+
+import (
+    "context"
+    "log"
+    "os"
+    "os/signal"
+    "syscall"
+
+    "github.com/mpataki/go-job-queue/service/worker"
+    "github.com/mpataki/go-job-queue/service/internal/jobs"
+)
+
+func main() {
+    // Define handler for job type "email"
+    handler := func(ctx context.Context, job *jobs.Job) error {
+        log.Printf("Sending email: %s", string(job.Payload))
+        // Send email here
+        return nil
+    }
+
+    w, err := worker.NewWorker("email", handler)
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+    defer stop()
+
+    if err := w.Start(ctx); err != nil {
+        log.Fatalf("Worker error: %v", err)
+    }
+
+    log.Println("Shutdown complete")
+}
+```
+
+Run with: `go run ./service/cmd/worker`
+
+## Job Status
+
+- `JOB_STATUS_PENDING` - Waiting for execution time
+- `JOB_STATUS_RUNNING` - Currently executing
+- `JOB_STATUS_COMPLETED` - Finished successfully (expires in 24h)
+- `JOB_STATUS_FAILED` - Execution failed (expires in 24h)
+
 ## Development
 
-### Running Tests
+### Project Structure
 
-```bash
-# Run all tests
-go test ./...
-
-# Run with verbose output
-go test -v ./...
-
-# Run specific package tests
-go test ./server/internal/jobs
+```
+go-job-queue/
+├── proto/              # Protocol buffer definitions
+│   └── gen/           # Generated gRPC code
+├── service/
+│   ├── cmd/
+│   │   ├── server/    # gRPC server
+│   │   └── worker/    # Example worker
+│   ├── internal/jobs/ # Job domain logic & Redis storage
+│   └── worker/        # PUBLIC - Worker SDK
+├── compose.yaml       # Docker setup
+└── Dockerfile         # Server image
 ```
 
-**Note:** Tests use testcontainers and require Docker to be running.
-
-### Generate Proto Code
+### Run Tests
 
 ```bash
-cd proto
-npm run build  # Generates Go and TypeScript/JavaScript
+go test ./...  # Requires Docker (uses testcontainers)
 ```
 
-See [proto/README.md](proto/README.md) for detailed proto build documentation.
-
-### Go Workspace
-
-This project uses Go workspaces to manage multiple modules:
+### Run Without Docker
 
 ```bash
-go work use ./proto ./server
-go work sync
+# Terminal 1: Redis
+redis-server
+
+# Terminal 2: Server
+cd service
+go run ./cmd/server
+
+# Terminal 3: Worker
+cd service
+go run ./cmd/worker
 ```
 
-### Project Modules
+### Environment Variables
 
-- `proto` - Protocol buffer definitions and generated code (multi-language)
-- `server` - Go service implementation, worker SDK, and client SDK
+- `REDIS_ADDR` - Redis address (default: `localhost:6379`)
 
-## Architecture & Technology
+## Technology
 
-### Stack
-- **Connect-RPC** - Modern gRPC with HTTP/2 (h2c for local development)
-- **Redis** - Job storage and queue (sorted sets for scheduling, hashes for job data)
-- **Go** - Service implementation with clean architecture
-- **Protocol Buffers** - Type-safe API definitions
-- **Buf** - Modern protobuf tooling for code generation
-
-### Design Patterns
-- **Registration Pattern** - Users register job handlers (like Sidekiq)
-- **Domain-Driven Design** - Internal domain logic separated from transport/storage
-- **Package by Feature** - Code organized by job queue domain, not layers
-- **Consumer-Defined Interfaces** - Storage interfaces defined by domain, not provider
-
-## License
-
-See LICENSE file for details.
+- **Go 1.25+** - Server and SDK implementation
+- **Connect-RPC** - gRPC over HTTP/2
+- **Redis** - Job storage and scheduling
+- **Protocol Buffers** - API definitions
+- **Docker** - Containerization

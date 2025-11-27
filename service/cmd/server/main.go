@@ -1,9 +1,8 @@
 package main
 
 import (
-	"fmt"
+	"log"
 	"net/http"
-	"os"
 
 	"connectrpc.com/grpcreflect"
 	"golang.org/x/net/http2"
@@ -17,20 +16,17 @@ func main() {
 	config, err := jobs.NewConfig()
 
 	if err != nil {
-		fmt.Printf("Failed to load configuration: %v\n", err)
-		os.Exit(1)
+		log.Fatalf("Failed to load configuration: %v", err)
 	}
 
 	storage, err := jobs.NewStorage(config)
 	if err != nil {
-		fmt.Printf("Failed to initialize storage: %v\n", err)
-		os.Exit(1)
+		log.Fatalf("Failed to initialize storage: %v", err)
 	}
 
 	service, err := jobs.NewService(config, storage)
 	if err != nil {
-		fmt.Printf("Failed to initialize service: %v\n", err)
-		os.Exit(1)
+		log.Fatalf("Failed to initialize service: %v", err)
 	}
 
 	jobServer := NewJobServer(service)
@@ -50,11 +46,11 @@ func main() {
 
 	// Start the server with h2c support
 	port := "8080"
-	fmt.Printf("gRPC server listening on port %s...\n", port)
+	log.Printf("gRPC server listening on port %s...", port)
 	if err := http.ListenAndServe(
 		":"+port,
 		h2c.NewHandler(mux, &http2.Server{}),
 	); err != nil {
-		fmt.Printf("Failed to start server: %v\n", err)
+		log.Fatalf("Failed to start server: %v", err)
 	}
 }
