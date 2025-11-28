@@ -14,7 +14,6 @@ import (
 
 func main() {
 	config, err := jobs.NewConfig()
-
 	if err != nil {
 		log.Fatalf("Failed to load configuration: %v", err)
 	}

@@ -1,6 +1,6 @@
 # go-job-queue
 
-A distributed job queue system built with Go, Redis, and gRPC. Supports scheduled job execution with **at-least-once delivery** semantics.
+A distributed job queue system built with Go, Redis, and Connect. Supports scheduled job execution with **at-least-once delivery** semantics.
 
 ## Quick Start
 
@@ -20,13 +20,13 @@ The example worker will process the job and log the payload.
 ## Architecture
 
 **Components:**
-- **Server** - gRPC API for job submission and querying
+- **Server** - Connect API for job submission and querying (supports Connect, gRPC, and gRPC-Web protocols)
 - **Worker SDK** - Library for building custom job processors
 - **Redis** - Job storage and scheduling (sorted sets + hashes)
 
 **Job Flow:**
 ```
-Client → gRPC → Server → Redis (job stored)
+Client → Connect/gRPC → Server → Redis (job stored)
 Worker → Redis (poll) → Execute Handler → Update Status
 ```
 
@@ -36,7 +36,38 @@ Worker → Redis (poll) → Execute Handler → Update Status
 - Completed/failed jobs expire after 24 hours
 - Single-threaded worker (v1)
 
-## API Examples
+## CLI Tool
+
+A command-line client for submitting and managing jobs:
+
+```bash
+# Build the CLI
+cd service
+go build -o job ./cmd/cli
+
+# Submit a job (executes immediately)
+./job submit --type print --payload "Hello World"
+
+# Schedule a job for later
+./job submit --type email --payload "test@example.com" --at 1735689600000
+
+# Connect to different server
+./job submit --type print --payload "hello" --server http://prod:8080
+
+# Get help
+./job --help
+./job submit --help
+```
+
+### CLI Commands
+
+- `submit` - Enqueue a job with type and payload
+  - `--type` (required) - Job type
+  - `--payload` (required) - Job payload as string
+  - `--at` (optional) - Execution time in Unix milliseconds (default: now)
+- `--server` (global) - Server address (default: `http://localhost:8080`)
+
+## API Examples (grpcurl)
 
 ### Enqueue a Job
 
@@ -139,7 +170,7 @@ go-job-queue/
 │   └── gen/           # Generated gRPC code
 ├── service/
 │   ├── cmd/
-│   │   ├── server/    # gRPC server
+│   │   ├── server/    # Connect server
 │   │   └── worker/    # Example worker
 │   ├── internal/jobs/ # Job domain logic & Redis storage
 │   └── worker/        # PUBLIC - Worker SDK
@@ -175,7 +206,10 @@ go run ./cmd/worker
 ## Technology
 
 - **Go 1.25+** - Server and SDK implementation
-- **Connect-RPC** - gRPC over HTTP/2
+- **Connect-RPC** - Protocol-agnostic RPC framework
+  - Supports Connect, gRPC, and gRPC-Web protocols
+  - Works over HTTP/1.1 and HTTP/2
+  - Browser-compatible without proxy (no Envoy needed)
 - **Redis** - Job storage and scheduling
 - **Protocol Buffers** - API definitions
 - **Docker** - Containerization
