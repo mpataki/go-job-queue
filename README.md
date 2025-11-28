@@ -8,7 +8,10 @@ A distributed job queue system built with Go, Redis, and Connect. Supports sched
 # Start everything (server, worker, Redis)
 docker compose up --build
 
-# In another terminal, enqueue a job
+# In another terminal, enqueue a job using the CLI
+go run ./service/cmd/cli submit --type print --payload "Hello World"
+
+# Or use grpcurl directly
 grpcurl -plaintext -d '{
   "type": "print",
   "payload": "SGVsbG8gV29ybGQh"
@@ -187,7 +190,8 @@ go-job-queue/
 ├── service/
 │   ├── cmd/
 │   │   ├── server/    # Connect server
-│   │   └── worker/    # Example worker
+│   │   ├── worker/    # Example worker
+│   │   └── cli/       # CLI tool
 │   ├── internal/jobs/ # Job domain logic & Redis storage
 │   └── worker/        # PUBLIC - Worker SDK
 ├── compose.yaml       # Docker setup
@@ -213,6 +217,9 @@ go run ./cmd/server
 # Terminal 3: Worker
 cd service
 go run ./cmd/worker
+
+# Terminal 4: Submit a job using CLI
+go run ./service/cmd/cli submit --type print --payload "Hello World"
 ```
 
 ### Environment Variables
