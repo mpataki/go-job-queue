@@ -51,6 +51,12 @@ go build -o job ./cmd/cli
 # Schedule a job for later
 ./job submit --type email --payload "test@example.com" --at 1735689600000
 
+# Get job status
+./job get --id <job-id>
+
+# Cancel a job
+./job cancel --id <job-id>
+
 # Connect to different server
 ./job submit --type print --payload "hello" --server http://prod:8080
 
@@ -61,11 +67,21 @@ go build -o job ./cmd/cli
 
 ### CLI Commands
 
+**Global Flags:**
+- `--server, -s` - Server address (default: `http://localhost:8080`)
+
+**Commands:**
+
 - `submit` - Enqueue a job with type and payload
   - `--type` (required) - Job type
   - `--payload` (required) - Job payload as string
   - `--at` (optional) - Execution time in Unix milliseconds (default: now)
-- `--server` (global) - Server address (default: `http://localhost:8080`)
+
+- `get` - Get job status and details
+  - `--id` (required) - Job ID
+
+- `cancel` - Cancel a pending or running job
+  - `--id` (required) - Job ID
 
 ## API Examples (grpcurl)
 
