@@ -3,6 +3,8 @@ package worker
 import (
 	"context"
 	"errors"
+	"fmt"
+	"log"
 	"os"
 	"testing"
 	"time"
@@ -65,10 +67,13 @@ func setupTest(t *testing.T, jobType string) *Worker {
 		return nil
 	}
 
+	logger := log.New(os.Stderr, fmt.Sprintf("[Worker:%s]", jobType), log.LstdFlags)
+
 	return &Worker{
 		service: testService,
 		jobType: jobType,
 		handler: handler,
+		logger:  logger,
 	}
 }
 
