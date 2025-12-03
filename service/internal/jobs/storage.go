@@ -191,6 +191,10 @@ func (s *Storage) SetExpiry(ctx context.Context, id string, duration time.Durati
 	return s.redisClient.Expire(ctx, jobKey(id), duration).Err()
 }
 
+func (s *Storage) FlushDB(ctx context.Context) error {
+	return s.redisClient.FlushDB(ctx).Err()
+}
+
 func jobKey(id string) string {
 	return "job:" + id
 }
